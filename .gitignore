@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.sqlite3
+*.db
+
+# macOS
+.DS_Store
+
+# Environments
+venv/
+.env
+
+# VS Code / PyCharm
+.vscode/
+.idea/
+
+# Node-related (if any)
+node_modules/
+*.log
+
+# Other
+*.bak
+*.swp

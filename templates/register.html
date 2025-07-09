@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin Registration</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="{{ url_for('static', filename='css/output.css') }}" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+
+<body class="bg-gray-950 text-white flex items-center justify-center min-h-screen">
+
+  <form method="POST" class="bg-gray-900 p-8 rounded-2xl shadow-xl w-full max-w-md space-y-6">
+    <h2 class="text-2xl font-bold text-center">Create Admin Account</h2>
+
+    <!-- 🔔 FLASH MESSAGES -->
+    {% with messages = get_flashed_messages() %}
+    {% if messages %}
+    <div class="bg-red-500 text-white p-3 rounded-lg text-sm text-center">
+      {% for message in messages %}
+      {{ message }}
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <input type="email" name="email" placeholder="Email" required
+      class="w-full p-3 rounded-xl bg-gray-800 border border-gray-700 focus:outline-none" />
+
+    <div class="relative">
+      <input type="password" name="password" id="password" placeholder="Password" required
+        class="w-full p-3 pr-12 rounded-xl bg-gray-800 border border-gray-700 focus:outline-none" />
+      <i data-lucide="eye" id="togglePass" class="absolute right-3 top-3.5 cursor-pointer text-gray-400"></i>
+    </div>
+
+    <div class="relative">
+      <input type="password" name="confirm_password" id="confirm_password" placeholder="Retype Password" required
+        class="w-full p-3 pr-12 rounded-xl bg-gray-800 border border-gray-700 focus:outline-none" />
+      <i data-lucide="eye" id="toggleConfirm" class="absolute right-3 top-3.5 cursor-pointer text-gray-400"></i>
+    </div>
+
+    <!-- Password Strength Meter -->
+    <div id="strengthBar" class="h-1 w-full bg-gray-700 rounded-full overflow-hidden">
+      <div id="strengthMeter" class="h-full w-0 bg-red-500 transition-all duration-300"></div>
+    </div>
+
+    <input type="text" name="passkey" placeholder="Access Passkey" required
+      class="w-full p-3 rounded-xl bg-gray-800 border border-gray-700 focus:outline-none" />
+    <p class="text-xs text-gray-400 -mt-4">📌 Ask admin for a valid access key</p>
+
+    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 p-3 rounded-xl font-semibold transition-all">
+      Register
+    </button>
+
+    <p class="text-sm text-gray-400 text-center">
+      Already registered? <a href="{{ url_for('auth.login') }}" class="text-blue-400 hover:underline">Login</a>
+    </p>
+  </form>
+
+  <!-- JS: Eye toggle & password strength -->
+  <script>
+    lucide.createIcons();
+
+    const password = document.getElementById('password');
+    const confirm = document.getElementById('confirm_password');
+    const togglePass = document.getElementById('togglePass');
+    const toggleConfirm = document.getElementById('toggleConfirm');
+    const strengthBar = document.getElementById('strengthMeter');
+
+    togglePass.addEventListener('click', () => {
+      password.type = password.type === 'password' ? 'text' : 'password';
+    });
+
+    toggleConfirm.addEventListener('click', () => {
+      confirm.type = confirm.type === 'password' ? 'text' : 'password';
+    });
+
+    password.addEventListener('input', () => {
+      const val = password.value;
+      let strength = 0;
+      if (val.length >= 6) strength += 1;
+      if (/[A-Z]/.test(val)) strength += 1;
+      if (/[0-9]/.test(val)) strength += 1;
+      if (/[^A-Za-z0-9]/.test(val)) strength += 1;
+
+      const width = `${strength * 25}%`;
+      const color = ['red', 'orange', 'yellow', 'green'][strength - 1] || 'transparent';
+      strengthBar.style.width = width;
+      strengthBar.style.backgroundColor = color;
+    });
+  </script>
+
+</body>
+
+</html>

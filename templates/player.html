@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+    }
+
+    .video-container {
+      position: relative;
+      width: 90%;
+      max-width: 1000px;
+      display: flex;
+      justify-content: center;
+      margin-inline: auto;
+      background-color: black;
+    }
+
+    .video-container.theater,
+    .video-container.full-screen {
+      max-width: initial;
+      width: 100%;
+    }
+
+    .video-container.theater {
+      max-height: 90vh;
+    }
+
+    .video-container.full-screen {
+      max-height: 100vh;
+    }
+
+    video {
+      width: 100%;
+    }
+
+    .video-controls-container {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      color: white;
+      z-index: 100;
+      opacity: 0;
+      transition: opacity 150ms ease-in-out;
+    }
+
+    .video-controls-container::before {
+      content: "";
+      position: absolute;
+      bottom: 0;
+      background: linear-gradient(to top, rgba(0, 0, 0, .75), transparent);
+      width: 100%;
+      aspect-ratio: 6 / 1;
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    .video-container:hover .video-controls-container,
+    .video-container:focus-within .video-controls-container,
+    .video-container.paused .video-controls-container {
+      opacity: 1;
+    }
+
+    .video-controls-container .controls {
+      display: flex;
+      gap: .5rem;
+      padding: .25rem;
+      align-items: center;
+    }
+
+    .video-controls-container .controls button {
+      background: none;
+      border: none;
+      color: inherit;
+      padding: 0;
+      height: 30px;
+      width: 30px;
+      font-size: 1.1rem;
+      cursor: pointer;
+      opacity: .85;
+      transition: opacity 150ms ease-in-out;
+    }
+
+    .video-controls-container .controls button:hover {
+      opacity: 1;
+    }
+
+    .video-container.paused .pause-icon {
+      display: none;
+    }
+
+    .video-container:not(.paused) .play-icon {
+      display: none;
+    }
+
+    .video-container.theater .tall {
+      display: none;
+    }
+
+    .video-container:not(.theater) .wide {
+      display: none;
+    }
+
+    .video-container.full-screen .open {
+      display: none;
+    }
+
+    .video-container:not(.full-screen) .close {
+      display: none;
+    }
+
+    .volume-high-icon,
+    .volume-low-icon,
+    .volume-muted-icon {
+      display: none;
+    }
+
+    .video-container[data-volume-level="high"] .volume-high-icon {
+      display: block;
+    }
+
+    .video-container[data-volume-level="low"] .volume-low-icon {
+      display: block;
+    }
+
+    .video-container[data-volume-level="muted"] .volume-muted-icon {
+      display: block;
+    }
+
+    .volume-container {
+      display: flex;
+      align-items: center;
+    }
+
+    .volume-slider {
+      width: 0;
+      transform-origin: left;
+      transform: scaleX(0);
+      transition: width 150ms ease-in-out, transform 150ms ease-in-out;
+    }
+
+    .volume-container:hover .volume-slider,
+    .volume-slider:focus-within {
+      width: 100px;
+      transform: scaleX(1);
+    }
+
+    .duration-container {
+      display: flex;
+      align-items: center;
+      gap: .25rem;
+      flex-grow: 1;
+    }
+
+    .video-container.captions .captions-btn {
+      border-bottom: 3px solid red;
+    }
+
+    .video-controls-container .controls button.wide-btn {
+      width: 50px;
+    }
+
+    .timeline-container {
+      height: 7px;
+      margin-inline: .5rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+    }
+
+    .timeline {
+      background-color: rgba(100, 100, 100, .5);
+      height: 3px;
+      width: 100%;
+      position: relative
+    }
+
+    .timeline::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      right: calc(100% - var(--preview-position) * 100%);
+      background-color: rgb(150, 150, 150);
+      display: none;
+    }
+
+    .timeline::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      right: calc(100% - var(--progress-position) * 100%);
+      background-color: red;
+    }
+
+    .timeline .thumb-indicator {
+      --scale: 0;
+      position: absolute;
+      transform: translateX(-50%) scale(var(--scale));
+      height: 200%;
+      top: -50%;
+      left: calc(var(--progress-position) * 100%);
+      background-color: red;
+      border-radius: 50%;
+      transition: transform 150ms ease-in-out;
+      aspect-ratio: 1 / 1;
+    }
+
+    .timeline .preview-img {
+      position: absolute;
+      height: 80px;
+      aspect-ratio: 16 / 9;
+      top: -1rem;
+      transform: translate(-50%, -100%);
+      left: calc(var(--preview-position) * 100%);
+      border-radius: .25rem;
+      border: 2px solid white;
+      display: none;
+    }
+
+    .thumbnail-img {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      width: 100%;
+      height: 100%;
+      display: none;
+    }
+
+    .video-container.scrubbing .thumbnail-img {
+      display: block;
+    }
+
+    .video-container.scrubbing .preview-img,
+    .timeline-container:hover .preview-img {
+      display: block;
+    }
+
+    .video-container.scrubbing .timeline::before,
+    .timeline-container:hover .timeline::before {
+      display: block;
+    }
+
+    .video-container.scrubbing .thumb-indicator,
+    .timeline-container:hover .thumb-indicator {
+      --scale: 1;
+    }
+
+    .video-container.scrubbing .timeline,
+    .timeline-container:hover .timeline {
+      height: 100%;
+    }
+  </style>
+
+  <!--Styling for the section below the player -->
+  <style>
+    .title-container,
+    .info-bar {
+      width: 90%;
+      max-width: 1000px;
+      margin-inline: auto;
+    }
+
+    .title-container {
+      margin-top: 1.5rem;
+      text-align: left;
+    }
+
+    .title-container h2 {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #333;
+      margin: 0;
+    }
+
+    .info-bar {
+      margin-top: 1rem;
+      padding: 0.75rem 1rem;
+      background-color: #f3f3f3;
+      border-radius: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .logo-box img {
+      max-height: 60px;
+      height: auto;
+      width: auto;
+    }
+
+    .like-box {
+      margin-left: auto;
+    }
+
+    /* Responsive: Stretch width when player is in theater or full-screen mode */
+    .video-container.theater+.title-container,
+    .video-container.full-screen+.title-container,
+    .video-container.theater+.title-container+.info-bar,
+    .video-container.full-screen+.title-container+.info-bar {
+      width: 100%;
+      max-width: none;
+      padding-inline: 1rem;
+    }
+  </style>
+
+
+  <!--Styling for like/dislike button -->
+  <style>
+    .Btn {
+      width: 140px;
+      height: 35px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      border: none;
+      border-radius: 5px;
+      overflow: hidden;
+      box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.089);
+      cursor: pointer;
+      background-color: transparent;
+      margin-right: 10px;
+    }
+
+    .leftContainer {
+      width: 60%;
+      height: 100%;
+      background-color: #0060ff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .leftContainer .like {
+      color: white;
+      font-weight: 600;
+    }
+
+    .likeCount {
+      width: 40%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #0060ff;
+      font-weight: 600;
+      position: relative;
+      background-color: white;
+    }
+
+    .likeCount::before {
+      height: 8px;
+      width: 8px;
+      position: absolute;
+      content: "";
+      background-color: rgb(255, 255, 255);
+      transform: rotate(45deg);
+      left: -4px;
+    }
+
+    .Btn:hover .leftContainer {
+      background-color: #1d4292;
+    }
+
+    .Btn:active .leftContainer {
+      background-color: #072b7a;
+    }
+
+    .Btn:active .leftContainer svg {
+      transform: scale(1.15);
+      transform-origin: top;
+    }
+
+    .voted {
+      box-shadow: 0 0 0 2px #0060ff inset;
+      background-color: #003fcc !important;
+      color: white !important;
+    }
+  </style>
+
+
+</head>
+
+<body>
+
+  <div class="video-container paused" data-volume-level="high">
+    <img class="thumbnail-img">
+    <div class="video-controls-container">
+      <div class="timeline-container">
+        <div class="timeline">
+          <img class="preview-img">
+          <div class="thumb-indicator"></div>
+        </div>
+      </div>
+      <div class="controls">
+        <button class="play-pause-btn">
+          <svg class="play-icon" viewBox="0 0 24 24">
+            <path fill="currentColor" d="M8,5.14V19.14L19,12.14L8,5.14Z" />
+          </svg>
+          <svg class="pause-icon" viewBox="0 0 24 24">
+            <path fill="currentColor" d="M14,19H18V5H14M6,19H10V5H6V19Z" />
+          </svg>
+        </button>
+        <div class="volume-container">
+          <button class="mute-btn">
+            <svg class="volume-high-icon" viewBox="0 0 24 24">
+              <path fill="currentColor"
+                d="M14,3.23V5.29C16.89,6.15 19,8.83 19,12C19,15.17 16.89,17.84 14,18.7V20.77C18,19.86 21,16.28 21,12C21,7.72 18,4.14 14,3.23M16.5,12C16.5,10.23 15.5,8.71 14,7.97V16C15.5,15.29 16.5,13.76 16.5,12M3,9V15H7L12,20V4L7,9H3Z" />
+            </svg>
+            <svg class="volume-low-icon" viewBox="0 0 24 24">
+              <path fill="currentColor"
+                d="M5,9V15H9L14,20V4L9,9M18.5,12C18.5,10.23 17.5,8.71 16,7.97V16C17.5,15.29 18.5,13.76 18.5,12Z" />
+            </svg>
+            <svg class="volume-muted-icon" viewBox="0 0 24 24">
+              <path fill="currentColor"
+                d="M12,4L9.91,6.09L12,8.18M4.27,3L3,4.27L7.73,9H3V15H7L12,20V13.27L16.25,17.53C15.58,18.04 14.83,18.46 14,18.7V20.77C15.38,20.45 16.63,19.82 17.68,18.96L19.73,21L21,19.73L12,10.73M19,12C19,12.94 18.8,13.82 18.46,14.64L19.97,16.15C20.62,14.91 21,13.5 21,12C21,7.72 18,4.14 14,3.23V5.29C16.89,6.15 19,8.83 19,12M16.5,12C16.5,10.23 15.5,8.71 14,7.97V10.18L16.45,12.63C16.5,12.43 16.5,12.21 16.5,12Z" />
+            </svg>
+          </button>
+          <input class="volume-slider" type="range" min="0" max="1" step="any" value="1">
+        </div>
+        <div class="duration-container">
+          <div class="current-time">0:00</div>
+          /
+          <div class="total-time"></div>
+        </div>
+        <button class="captions-btn">
+          <svg viewBox="0 0 24 24">
+            <path fill="currentColor"
+              d="M18,11H16.5V10.5H14.5V13.5H16.5V13H18V14A1,1 0 0,1 17,15H14A1,1 0 0,1 13,14V10A1,1 0 0,1 14,9H17A1,1 0 0,1 18,10M11,11H9.5V10.5H7.5V13.5H9.5V13H11V14A1,1 0 0,1 10,15H7A1,1 0 0,1 6,14V10A1,1 0 0,1 7,9H10A1,1 0 0,1 11,10M19,4H5C3.89,4 3,4.89 3,6V18A2,2 0 0,0 5,20H19A2,2 0 0,0 21,18V6C21,4.89 20.1,4 19,4Z" />
+          </svg>
+        </button>
+        <button class="speed-btn wide-btn">
+          1x
+        </button>
+        <button class="mini-player-btn">
+          <svg viewBox="0 0 24 24">
+            <path fill="currentColor"
+              d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zm-10-7h9v6h-9z" />
+          </svg>
+        </button>
+        <button class="theater-btn">
+          <svg class="tall" viewBox="0 0 24 24">
+            <path fill="currentColor"
+              d="M19 6H5c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 10H5V8h14v8z" />
+          </svg>
+          <svg class="wide" viewBox="0 0 24 24">
+            <path fill="currentColor"
+              d="M19 7H5c-1.1 0-2 .9-2 2v6c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2zm0 8H5V9h14v6z" />
+          </svg>
+        </button>
+        <button class="full-screen-btn">
+          <svg class="open" viewBox="0 0 24 24">
+            <path fill="currentColor"
+              d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" />
+          </svg>
+          <svg class="close" viewBox="0 0 24 24">
+            <path fill="currentColor"
+              d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z" />
+          </svg>
+        </button>
+      </div>
+    </div>
+    <video id="videoPlayer">
+      <source src="{{ video_url }}" type="video/mp4" />
+      <track kind="captions" srclang="en">
+    </video>
+  </div>
+  </div>
+
+
+  <!-- Video Title Aligned Left -->
+  <div class="title-container">
+    <h2>{{ video.title }}</h2>
+    <span class="mt-2 text-gray-800 font-medium tracking-wide text-sm"
+      style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+      DON MIGUEL
+    </span>
+  </div>
+
+  <!-- Logo and Like/Dislike Row -->
+  <div class="info-bar">
+    <!-- Left: Don Miguel Logo -->
+    <div class="logo-box">
+      <img src="/static/uploads/donmiguel.png" alt="Don Miguel Logo">
+    </div>
+
+    <!-- Like/Dislike Buttons -->
+    <div class="like-buttons">
+      <!-- Like Button -->
+      <button class="Btn" onclick="vote('like')">
+        <span class="leftContainer">
+          <svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 0 512 512" fill="#fff">
+            <path
+              d="M313.4 32.9c26 5.2 42.9 30.5 37.7 56.5l-2.3 11.4c-5.3 26.7-15.1 52.1-28.8 75.2H464c26.5 0 48 21.5 48 48c0 18.5-10.5 34.6-25.9 42.6C497 275.4 504 288.9 504 304c0 23.4-16.8 42.9-38.9 47.1c4.4 7.3 6.9 15.8 6.9 24.9c0 21.3-13.9 39.4-33.1 45.6c.7 3.3 1.1 6.8 1.1 10.4c0 26.5-21.5 48-48 48H294.5c-19 0-37.5-5.6-53.3-16.1l-38.5-25.7C176 420.4 160 390.4 160 358.3V320 272 247.1c0-29.2 13.3-56.7 36-75l7.4-5.9c26.5-21.2 44.6-51 51.2-84.2l2.3-11.4c5.2-26 30.5-42.9 56.5-37.7zM32 192H96c17.7 0 32 14.3 32 32V448c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32V224c0-17.7 14.3-32 32-32z">
+            </path>
+          </svg>
+          <span class="like">Like</span>
+        </span>
+        <span class="likeCount" id="likeCount">0</span>
+      </button>
+
+      <!-- Dislike Button -->
+      <button class="Btn" onclick="vote('dislike')">
+        <span class="leftContainer" style="background-color: #ff0000;">
+          <svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 0 512 512" fill="#fff">
+            <path
+              d="M199 479c-26-5.2-42.9-30.5-37.7-56.5l2.3-11.4c5.3-26.7 15.1-52.1 28.8-75.2H48c-26.5 0-48-21.5-48-48c0-18.5 10.5-34.6 25.9-42.6C15 236.6 8 223.1 8 208c0-23.4 16.8-42.9 38.9-47.1C42.5 153.6 40 145.1 40 136c0-21.3 13.9-39.4 33.1-45.6c-.7-3.3-1.1-6.8-1.1-10.4c0-26.5 21.5-48 48-48h109.5c19 0 37.5 5.6 53.3 16.1l38.5 25.7C336 91.6 352 121.6 352 153.7V192v48v24.9c0 29.2-13.3 56.7-36 75l-7.4 5.9c-26.5 21.2-44.6 51-51.2 84.2l-2.3 11.4c-5.2 26-30.5 42.9-56.5 37.7zM480 320H416c-17.7 0-32-14.3-32-32V64c0-17.7 14.3-32 32-32h64c17.7 0 32 14.3 32 32V288c0 17.7-14.3 32-32 32z" />
+          </svg>
+          <span class="like">Dislike</span>
+        </span>
+        <span class="likeCount" id="dislikeCount">0</span>
+      </button>
+    </div>
+  </div>
+
+
+
+
+  <script>
+    const playPauseBtn = document.querySelector(".play-pause-btn")
+    const theaterBtn = document.querySelector(".theater-btn")
+    const fullScreenBtn = document.querySelector(".full-screen-btn")
+    const miniPlayerBtn = document.querySelector(".mini-player-btn")
+    const muteBtn = document.querySelector(".mute-btn")
+    const captionsBtn = document.querySelector(".captions-btn")
+    const speedBtn = document.querySelector(".speed-btn")
+    const currentTimeElem = document.querySelector(".current-time")
+    const totalTimeElem = document.querySelector(".total-time")
+    const previewImg = document.querySelector(".preview-img")
+    const thumbnailImg = document.querySelector(".thumbnail-img")
+    const volumeSlider = document.querySelector(".volume-slider")
+    const videoContainer = document.querySelector(".video-container")
+    const timelineContainer = document.querySelector(".timeline-container")
+    const video = document.querySelector("video")
+
+    document.addEventListener("keydown", e => {
+      const tagName = document.activeElement.tagName.toLowerCase()
+
+      if (tagName === "input") return
+
+      switch (e.key.toLowerCase()) {
+        case " ":
+          if (tagName === "button") return
+        case "k":
+          togglePlay()
+          break
+        case "f":
+          toggleFullScreenMode()
+          break
+        case "t":
+          toggleTheaterMode()
+          break
+        case "i":
+          toggleMiniPlayerMode()
+          break
+        case "m":
+          toggleMute()
+          break
+        case "arrowleft":
+        case "j":
+          skip(-5)
+          break
+        case "arrowright":
+        case "l":
+          skip(5)
+          break
+        case "c":
+          toggleCaptions()
+          break
+      }
+    })
+
+    // Timeline
+    timelineContainer.addEventListener("mousemove", handleTimelineUpdate)
+    timelineContainer.addEventListener("mousedown", toggleScrubbing)
+    document.addEventListener("mouseup", e => {
+      if (isScrubbing) toggleScrubbing(e)
+    })
+    document.addEventListener("mousemove", e => {
+      if (isScrubbing) handleTimelineUpdate(e)
+    })
+
+    let isScrubbing = false
+    let wasPaused
+    function toggleScrubbing(e) {
+      const rect = timelineContainer.getBoundingClientRect()
+      const percent = Math.min(Math.max(0, e.x - rect.x), rect.width) / rect.width
+      isScrubbing = (e.buttons & 1) === 1
+      videoContainer.classList.toggle("scrubbing", isScrubbing)
+      if (isScrubbing) {
+        wasPaused = video.paused
+        video.pause()
+      } else {
+        video.currentTime = percent * video.duration
+        if (!wasPaused) video.play()
+      }
+
+      handleTimelineUpdate(e)
+    }
+
+    function handleTimelineUpdate(e) {
+      const rect = timelineContainer.getBoundingClientRect()
+      const percent = Math.min(Math.max(0, e.x - rect.x), rect.width) / rect.width
+      const previewImgNumber = Math.max(
+        1,
+        Math.floor((percent * video.duration) / 10)
+      )
+      const previewImgSrc = `assets/previewImgs/preview${previewImgNumber}.jpg`
+      previewImg.src = previewImgSrc
+      timelineContainer.style.setProperty("--preview-position", percent)
+
+      if (isScrubbing) {
+        e.preventDefault()
+        thumbnailImg.src = previewImgSrc
+        timelineContainer.style.setProperty("--progress-position", percent)
+      }
+    }
+
+    // Playback Speed
+    speedBtn.addEventListener("click", changePlaybackSpeed)
+
+    function changePlaybackSpeed() {
+      let newPlaybackRate = video.playbackRate + 0.25
+      if (newPlaybackRate > 2) newPlaybackRate = 0.25
+      video.playbackRate = newPlaybackRate
+      speedBtn.textContent = `${newPlaybackRate}x`
+    }
+
+    // Captions
+    const captions = video.textTracks[0]
+    captions.mode = "hidden"
+
+    captionsBtn.addEventListener("click", toggleCaptions)
+
+    function toggleCaptions() {
+      const isHidden = captions.mode === "hidden"
+      captions.mode = isHidden ? "showing" : "hidden"
+      videoContainer.classList.toggle("captions", isHidden)
+    }
+
+    // Duration
+    video.addEventListener("loadeddata", () => {
+      totalTimeElem.textContent = formatDuration(video.duration)
+    })
+
+    video.addEventListener("timeupdate", () => {
+      currentTimeElem.textContent = formatDuration(video.currentTime)
+      const percent = video.currentTime / video.duration
+      timelineContainer.style.setProperty("--progress-position", percent)
+    })
+
+    const leadingZeroFormatter = new Intl.NumberFormat(undefined, {
+      minimumIntegerDigits: 2,
+    })
+    function formatDuration(time) {
+      const seconds = Math.floor(time % 60)
+      const minutes = Math.floor(time / 60) % 60
+      const hours = Math.floor(time / 3600)
+      if (hours === 0) {
+        return `${minutes}:${leadingZeroFormatter.format(seconds)}`
+      } else {
+        return `${hours}:${leadingZeroFormatter.format(
+          minutes
+        )}:${leadingZeroFormatter.format(seconds)}`
+      }
+    }
+
+    function skip(duration) {
+      video.currentTime += duration
+    }
+
+    // Volume
+    muteBtn.addEventListener("click", toggleMute)
+    volumeSlider.addEventListener("input", e => {
+      video.volume = e.target.value
+      video.muted = e.target.value === 0
+    })
+
+    function toggleMute() {
+      video.muted = !video.muted
+    }
+
+    video.addEventListener("volumechange", () => {
+      volumeSlider.value = video.volume
+      let volumeLevel
+      if (video.muted || video.volume === 0) {
+        volumeSlider.value = 0
+        volumeLevel = "muted"
+      } else if (video.volume >= 0.5) {
+        volumeLevel = "high"
+      } else {
+        volumeLevel = "low"
+      }
+
+      videoContainer.dataset.volumeLevel = volumeLevel
+    })
+
+    // View Modes
+    theaterBtn.addEventListener("click", toggleTheaterMode)
+    fullScreenBtn.addEventListener("click", toggleFullScreenMode)
+    miniPlayerBtn.addEventListener("click", toggleMiniPlayerMode)
+
+    function toggleTheaterMode() {
+      videoContainer.classList.toggle("theater")
+    }
+
+    function toggleFullScreenMode() {
+      if (document.fullscreenElement == null) {
+        videoContainer.requestFullscreen()
+      } else {
+        document.exitFullscreen()
+      }
+    }
+
+    function toggleMiniPlayerMode() {
+      if (videoContainer.classList.contains("mini-player")) {
+        document.exitPictureInPicture()
+      } else {
+        video.requestPictureInPicture()
+      }
+    }
+
+    document.addEventListener("fullscreenchange", () => {
+      videoContainer.classList.toggle("full-screen", document.fullscreenElement)
+    })
+
+    video.addEventListener("enterpictureinpicture", () => {
+      videoContainer.classList.add("mini-player")
+    })
+
+    video.addEventListener("leavepictureinpicture", () => {
+      videoContainer.classList.remove("mini-player")
+    })
+
+    // Play/Pause
+    playPauseBtn.addEventListener("click", togglePlay)
+    video.addEventListener("click", togglePlay)
+
+    function togglePlay() {
+      video.paused ? video.play() : video.pause()
+    }
+
+    video.addEventListener("play", () => {
+      videoContainer.classList.remove("paused")
+    })
+
+    video.addEventListener("pause", () => {
+      videoContainer.classList.add("paused")
+    })
+  </script>
+
+  <!-- like/dislike button implementation -->
+  <script>
+    const videoUUID = "{{ video.uuid }}";
+
+    window.onload = function () {
+      // Load current vote counts
+      fetch(`/video/${videoUUID}/counts`)
+        .then(res => res.json())
+        .then(data => {
+          document.getElementById("likeCount").innerText = data.likes;
+          document.getElementById("dislikeCount").innerText = data.dislikes;
+        });
+
+      // Show the user's vote if it exists
+      const previousVote = localStorage.getItem(`vote_${videoUUID}`);
+      if (previousVote === 'like') {
+        document.getElementById("likeBtn").classList.add("voted");
+        document.getElementById("dislikeBtn").classList.remove("voted");
+      } else if (previousVote === 'dislike') {
+        document.getElementById("dislikeBtn").classList.add("voted");
+        document.getElementById("likeBtn").classList.remove("voted");
+      }
+    };
+
+    function vote(type) {
+      const previousVote = localStorage.getItem(`vote_${videoUUID}`);
+
+      // Prevent double voting for the same type
+      if (previousVote === type) {
+        return; // Already voted for this type
+      }
+
+      fetch(`/video/${videoUUID}/vote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vote: type, previous: previousVote || null })
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.error) {
+            alert(data.error);
+            return;
+          }
+
+          // Save new vote to localStorage
+          localStorage.setItem(`vote_${videoUUID}`, type);
+
+          // Update UI
+          document.getElementById("likeCount").innerText = data.likes;
+          document.getElementById("dislikeCount").innerText = data.dislikes;
+
+          if (type === 'like') {
+            document.getElementById("likeBtn").classList.add("voted");
+            document.getElementById("dislikeBtn").classList.remove("voted");
+          } else {
+            document.getElementById("dislikeBtn").classList.add("voted");
+            document.getElementById("likeBtn").classList.remove("voted");
+          }
+        });
+    }
+  </script>
+
+
+
+</body>
+
+</html>

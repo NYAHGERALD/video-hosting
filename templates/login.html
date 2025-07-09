@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin Login</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="{{ url_for('static', filename='css/output.css') }}" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-gray-950 text-white flex items-center justify-center min-h-screen">
+
+  <form method="POST" class="bg-gray-900 p-8 rounded-2xl shadow-xl w-full max-w-md space-y-6">
+    <h2 class="text-2xl font-bold text-center">Admin Login</h2>
+
+    <!-- 🔔 FLASH MESSAGES -->
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="bg-red-500 text-white p-3 rounded-lg text-sm text-center">
+          {% for message in messages %}
+            {{ message }}
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <input type="email" name="email" placeholder="Email" required
+           class="w-full p-3 rounded-xl bg-gray-800 border border-gray-700 focus:outline-none" />
+
+    <div class="relative">
+      <input type="password" name="password" id="password" placeholder="Password" required
+             class="w-full p-3 pr-12 rounded-xl bg-gray-800 border border-gray-700 focus:outline-none" />
+      <i data-lucide="eye" id="togglePass" class="absolute right-3 top-3.5 cursor-pointer text-gray-400"></i>
+    </div>
+
+    <button type="submit"
+            class="w-full bg-blue-600 hover:bg-blue-700 p-3 rounded-xl font-semibold transition-all">
+      Login
+    </button>
+
+    <p class="text-sm text-gray-400 text-center">
+      Don’t have an account? <a href="{{ url_for('register') }}" class="text-blue-400 hover:underline">Register</a>
+    </p>
+  </form>
+
+  <!-- JS: Toggle password visibility -->
+  <script>
+    lucide.createIcons();
+    const password = document.getElementById('password');
+    const togglePass = document.getElementById('togglePass');
+
+    togglePass.addEventListener('click', () => {
+      password.type = password.type === 'password' ? 'text' : 'password';
+    });
+  </script>
+
+</body>
+</html>

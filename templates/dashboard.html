@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Dashboard</title>
+    <link href="{{ url_for('static', filename='css/output.css') }}" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .hover-preview video {
+            display: none;
+        }
+
+        .hover-preview:hover video {
+            display: block;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-gray-900 text-gray-200 font-sans">
+    <div class="flex h-screen">
+
+        <!-- Sidebar -->
+        <aside class="w-64 bg-gray-800 p-6 shadow-md">
+            <h2 class="text-2xl font-bold mb-6 text-white">🎬 Video Admin</h2>
+            <nav class="space-y-4">
+                <a href="#" class="block text-gray-300 hover:text-white">Analytics</a>
+                <a href="#" class="block text-gray-300 hover:text-white">Settings</a>
+                <a href="/logout" class="block text-red-400 hover:text-red-600">Logout</a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-8 overflow-y-auto">
+
+            <!-- Stats -->
+            <div class="grid grid-cols-3 gap-4 mb-8">
+                <div class="bg-gray-800 p-4 rounded-xl shadow fade-in">
+                    <h3 class="text-sm text-gray-400">Total Videos</h3>
+                    <p class="text-2xl font-bold text-white">{{ videos|length }}</p>
+                </div>
+                <div class="bg-gray-800 p-4 rounded-xl shadow fade-in">
+                    <h3 class="text-sm text-gray-400">Total Likes</h3>
+                    <p class="text-2xl font-bold text-white">{{ total_likes }}</p>
+                </div>
+                <div class="bg-gray-800 p-4 rounded-xl shadow fade-in">
+                    <h3 class="text-sm text-gray-400">Total Dislikes</h3>
+                    <p class="text-2xl font-bold text-white">{{ total_dislikes }}</p>
+                </div>
+            </div>
+
+            <!-- Upload Form -->
+            <div class="bg-gray-800 p-6 rounded-xl shadow mb-10 fade-in">
+                <h2 class="text-xl font-semibold text-white mb-4">Upload New Video</h2>
+                <form id="uploadForm" action="/upload" method="POST" enctype="multipart/form-data" class="space-y-4">
+                    <input type="text" name="title"
+                        placeholder="Video title will load once you choose a video file to upload"
+                        class="w-full p-2 rounded bg-gray-700 text-white" required>
+                    <textarea name="description"
+                        placeholder="Video description will load once you choose a video file to upload"
+                        class="w-full p-2 rounded bg-gray-700 text-white"></textarea>
+
+                    <!-- File Input with dynamic label -->
+                    <label class="flex items-center space-x-3 text-gray-300">
+                        <span id="fileLabel" class="bg-gray-700 px-3 py-2 rounded shadow">📁 Choose File</span>
+                        <input type="file" name="video" class="hidden" required onchange="
+                            const file = this.files[0];
+                            if (file) {
+                                document.getElementById('fileLabel').textContent = '📁 ' + file.name;
+                                const baseName = file.name.replace(/\.[^/.]+$/, '');
+                                document.querySelector('input[name=title]').value = baseName;
+                                const descField = document.querySelector('textarea[name=description]');
+                                if (!descField.value.trim()) {
+                                descField.value = 'Uploaded video: ' + baseName;
+                                }
+                            }
+                            ">
+
+                    </label>
+
+                    <!-- Progress UI -->
+                    <div id="progressContainer" class="hidden">
+                        <div class="flex justify-between text-sm text-gray-400 mb-1">
+                            <span id="progressText">Stay put your video is Uploading...</span>
+                            <span id="progressPercent">0%</span>
+                        </div>
+                        <div class="w-full bg-gray-600 rounded-full h-3 overflow-hidden">
+                            <div id="progressBar" class="bg-blue-500 h-full transition-all duration-300 ease-linear"
+                                style="width: 0%;"></div>
+                        </div>
+                        <div class="text-xs text-right mt-1 text-gray-400" id="timeRemaining">Estimated time left: --
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button id="uploadBtn" type="submit"
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded flex items-center space-x-2 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
+                        <svg id="uploadSpinner" class="w-4 h-4 animate-spin hidden" fill="none" viewBox="0 0 24 24"
+                            xmlns="http://www.w3.org/2000/svg">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
+                            </circle>
+                            <path class="opacity-75" fill="currentColor"
+                                d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 100 16v-4l-3 3 3 3v-4a8 8 0 01-8-8z"></path>
+                        </svg>
+                        <span id="uploadText">Upload Video</span>
+                    </button>
+
+
+                    <!-- Success Message -->
+                    <div id="successMessage" class="text-green-400 mt-2 hidden">✅ Great! your video has been uploaded
+                        successfully!</div>
+                </form>
+
+            </div>
+
+
+            <!-- Search -->
+            <div class="mb-4">
+                <input type="text" id="searchInput" onkeyup="filterTable()" placeholder="Search by title..."
+                    class="w-full p-2 rounded bg-gray-700 text-white placeholder-gray-400 border border-gray-600 focus:outline-none focus:ring focus:ring-blue-500" />
+            </div>
+
+            <!-- Video Table -->
+            <div class="bg-gray-800 p-6 rounded-xl shadow fade-in">
+                <h2 class="text-xl font-semibold text-white mb-4">Uploaded Videos</h2>
+                <table class="w-full text-left table-auto" id="videoTable">
+                    <thead class="text-gray-400 border-b border-gray-700">
+                        <tr>
+                            <th class="py-2">Preview</th>
+                            <th class="py-2">Title</th>
+                            <th class="py-2">Uploaded At</th>
+                            <th class="py-2">Size (MB)</th>
+                            <th class="py-2">Share</th>
+                            <th class="py-2">Likes</th>
+                            <th class="py-2">Dislikes</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-white">
+                        {% for video in videos %}
+                        <tr class="hover:bg-gray-700 transition-all duration-300">
+                            <td class="py-2">
+                                <div class="w-32 h-16 overflow-hidden rounded-lg border border-gray-700 cursor-pointer"
+                                    onclick="playVideo('{{ video.url }}')">
+                                    <video muted autoplay loop class="w-full h-full object-cover">
+                                        <source src="{{ video.url }}">
+                                    </video>
+                                </div>
+                            </td>
+
+                            <td class="py-2 title-cell">{{ video.title }}</td>
+
+                            <td class="py-2 text-sm text-gray-300">{{ video.uploaded_at if video.uploaded_at else
+                                "Unknown" }}</td>
+                            <td class="py-2 text-sm text-gray-300">{{ (video.size|string) + " MB" if video.size else
+                                "N/A" }}</td>
+                            <td class="py-2 text-blue-300">
+                                <div class="flex items-center space-x-2">
+                                    <span id="link-{{ loop.index }}" class="truncate max-w-[150px]">
+                                        <a href="{{ url_for('player', uuid=video.uuid) }}" target="_blank"
+                                            class="text-blue-400 underline">
+                                            Share Link
+                                        </a>
+                                    </span>
+
+                                    <button onclick="copyToClipboard('link-{{ loop.index }}')"
+                                        class="text-xs px-2 py-1 bg-gray-600 rounded hover:bg-gray-500">Copy</button>
+                                </div>
+                            </td>
+
+                            <td class="py-2 text-green-400 text-center font-semibold">{{ video.likes }}</td>
+                            <td class="py-2 text-red-400 text-center font-semibold">{{ video.dislikes }}</td>
+
+                            <td class="py-2">
+                                <form action="/delete-from-s3" method="POST" onsubmit="return confirmDeleteS3()">
+                                    <input type="hidden" name="s3_key" value="{{ video.s3_key }}">
+                                    <button type="submit"
+                                        class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+
+                </table>
+            </div>
+
+
+            <!-- Mini Player -->
+            <div class="bg-gray-800 mt-10 p-4 rounded-xl shadow fade-in">
+                <h2 class="text-lg text-white mb-2">🎥 Preview Player</h2>
+                <video id="miniPlayer" controls class="w-full rounded-lg bg-black h-60"></video>
+            </div>
+        </main>
+
+        <!-- Scripts -->
+        <script>
+            function playVideo(src) {
+                const player = document.getElementById('miniPlayer');
+                player.src = src;
+                player.play();
+            }
+        </script>
+
+    </div>
+
+    <!-- Optional JS for effects -->
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            document.querySelectorAll(".fade-in").forEach((el, index) => {
+                setTimeout(() => el.classList.add("opacity-100"), index * 100);
+            });
+        });
+    </script>
+    <!-- Scripts -->
+    <script>
+
+        function playVideo(src) {
+            const player = document.getElementById('miniPlayer');
+            player.src = src;
+            player.play();
+            player.scrollIntoView({ behavior: "smooth" });
+        }
+    </script>
+
+    <script>
+        function filterTable() {
+            const input = document.getElementById("searchInput");
+            const filter = input.value.toLowerCase();
+            const rows = document.querySelectorAll("#videoTable tbody tr");
+
+            rows.forEach(row => {
+                const title = row.querySelector(".title-cell").textContent.toLowerCase();
+                row.style.display = title.includes(filter) ? "" : "none";
+            });
+        }
+
+
+
+        function playVideo(url) {
+            const player = document.getElementById("miniPlayer");
+            player.src = url;
+            player.load();
+            player.play();
+        }
+
+        function confirmDeleteS3() {
+            return confirm("⚠️ Are you sure you want to permanently delete this video from the cloud?\n\nThis action cannot be undone and the file will no longer be accessible.");
+        }
+    </script>
+
+    <script>
+        const form = document.getElementById('uploadForm');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        const progressPercent = document.getElementById('progressPercent');
+        const timeRemaining = document.getElementById('timeRemaining');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const successMessage = document.getElementById('successMessage');
+
+        form.addEventListener('submit', function (e) {
+            e.preventDefault(); // prevent default form submission
+
+            const formData = new FormData(form);
+            const xhr = new XMLHttpRequest();
+            const file = formData.get('video');
+            const totalSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+
+            // Initialize progress
+            progressContainer.classList.remove('hidden');
+            progressBar.style.width = '0%';
+            progressPercent.textContent = '0%';
+            timeRemaining.textContent = 'Estimated time left: --';
+            uploadBtn.disabled = true;
+            successMessage.classList.add('hidden');
+
+            document.getElementById('uploadSpinner').classList.remove('hidden');
+            document.getElementById('uploadText').textContent = "Uploading...";
+
+
+            let startTime = Date.now();
+
+            xhr.open('POST', form.action, true);
+
+            xhr.upload.addEventListener('progress', function (e) {
+                if (e.lengthComputable) {
+                    const percent = Math.floor((e.loaded / e.total) * 100);
+                    const elapsed = (Date.now() - startTime) / 1000; // seconds
+                    const speed = e.loaded / elapsed; // bytes/sec
+                    const remaining = (e.total - e.loaded) / speed;
+                    const remainingTime = Math.ceil(remaining);
+
+                    progressBar.style.width = percent + '%';
+                    progressPercent.textContent = percent + '%';
+                    timeRemaining.textContent = `Estimated time left: ${remainingTime}s`;
+                    progressText.textContent = `Uploading ${((e.loaded / 1024 / 1024).toFixed(2))}MB of ${totalSizeMB}MB...`;
+                }
+            });
+
+            xhr.onload = function () {
+                uploadBtn.disabled = false;
+
+                document.getElementById('uploadSpinner').classList.add('hidden');
+                document.getElementById('uploadText').textContent = "Upload Video";
+
+
+                if (xhr.status === 200) {
+                    progressBar.style.width = '100%';
+                    progressPercent.textContent = '100%';
+                    progressText.textContent = 'Upload complete.';
+                    timeRemaining.textContent = '';
+                    successMessage.classList.remove('hidden');
+
+                    // Delay briefly then reload page to see new upload
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showError("❌ Upload failed. Please try again.");
+                }
+            };
+
+            xhr.onerror = function () {
+                uploadBtn.disabled = false;
+
+                document.getElementById('uploadSpinner').classList.add('hidden');
+                document.getElementById('uploadText').textContent = "Upload Video";
+
+                showError("❌ An error occurred during upload.");
+            };
+
+            xhr.send(formData);
+        });
+
+        function showError(message) {
+            progressText.textContent = message;
+            progressText.classList.add('text-red-400');
+            timeRemaining.textContent = '';
+        }
+    </script>
+
+    <script>
+        function copyToClipboard(id) {
+            const anchor = document.querySelector(`#${id} a`);
+            const url = anchor.href;
+
+            navigator.clipboard.writeText(url).then(() => {
+                showToast("✅ Link copied to clipboard!");
+            }).catch(err => {
+                showToast("❌ Failed to copy link.");
+                console.error(err);
+            });
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.remove('hidden');
+            toast.style.opacity = '1';
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+            }, 2500);
+
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3000);
+        }
+    </script>
+
+
+
+
+
+
+
+    <!-- Toast Message -->
+    <div id="toast"
+        class="fixed top-5 right-5 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg hidden z-50 transition-all duration-500">
+    </div>
+
+
+</body>
+
+</html>
